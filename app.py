@@ -2,6 +2,7 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import PyPDF2
+from docx import Document
 import streamlit as st
 
 load_dotenv()
@@ -16,7 +17,7 @@ st.write("Paste your resume text to get its proper analysis!")
 
 uploaded_file=st.file_uploader(
     "Upload your resume",
-    type=["pdf"]
+    type=["pdf","docx"]
 )
 
 resume_text= st.text_area("Paste your resume text here: ",height=200)
@@ -25,10 +26,19 @@ if st.button("Analyze resume "):
 
     final_resume_text=""
     if uploaded_file is not None:
-        pdf_reader= PyPDF2.PdfReader(uploaded_file)
-        final_resume_text=""
-        for page in pdf_reader.pages:
-            final_resume_text+=page.extract_text()
+
+        if uploaded_file.type == "application/pdf":
+            pdf_reader= PyPDF2.PdfReader(uploaded_file)
+            final_resume_text=""
+            for page in pdf_reader.pages:
+                text = page.extract_text()
+                if text:
+                    final_resume_text += text
+
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            doc = Document(uploaded_file)
+            for para in doc.paragraphs:
+                final_resume_text += para.text + "\n"
         
     elif resume_text:
         final_resume_text=resume_text
@@ -37,13 +47,25 @@ if st.button("Analyze resume "):
         st.warning("Please upload a PDF or paste resume text.")
         st.stop()
 
-    
+    st.write(final_resume_text[:500])
     with st.spinner("Analyzing the resume..."):
         response= client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct",
             messages=[
-                    {"role":"user", "content":"Act like an HR reviewer and assess resume on the basis of stregths, weakness, missing skills and improvemnts. Be consice"},
-                    {"role":"user","content":final_resume_text}
+                    {"role":"system", "content":"Act like an HR reviewer and assess resume on the basis of stregths, weakness, missing skills and improvemnts. Be consice"},
+                    {"role":"user","content": f"""
+                            Analyze this resume:
+
+                            {final_resume_text}
+
+                            Give:
+                            1. Strengths
+                            2. Weaknesses
+                            3. Missing Skills
+                            4. Improvements
+                            Keep answer concise.
+                            """
+                            }
                 ],
                 max_tokens=300
         )
