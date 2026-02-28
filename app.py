@@ -47,7 +47,6 @@ if st.button("Analyze resume "):
         st.warning("Please upload a PDF or paste resume text.")
         st.stop()
 
-    st.write(final_resume_text[:500])
     with st.spinner("Analyzing the resume..."):
         response= client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct",
